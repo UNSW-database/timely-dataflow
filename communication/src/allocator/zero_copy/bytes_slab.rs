@@ -61,6 +61,9 @@ impl BytesSlab {
                 self.in_progress.clear();   // clear wrongly sized buffers.
             }
 
+            println!("size of empty: {}", self.valid + capacity);
+            println!("size of shift: {}", self.shift);
+
             // Attempt to reclaim shared slices.
             if self.stash.is_empty() {
                 for shared in self.in_progress.iter_mut() {
@@ -77,6 +80,10 @@ impl BytesSlab {
             }
 
             let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
+            assert!(new_buffer.len() >= self.valid + capacity);
+            println!("new buffer size: {}", new_buffer.len());
+            println!("size required: {}", self.valid + capacity);
+
             let old_buffer = ::std::mem::replace(&mut self.buffer, new_buffer);
 
             self.buffer[.. self.valid].copy_from_slice(&old_buffer[.. self.valid]);
