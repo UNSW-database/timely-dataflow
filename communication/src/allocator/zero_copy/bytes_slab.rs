@@ -89,12 +89,6 @@ impl BytesSlab {
             };
 
             // let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
-            eprintln!("capacity: {}", capacity);
-            eprintln!("valid: {}", self.valid);
-            eprintln!("shift: {}", self.shift);
-            eprintln!("new buffer size: {}", new_buffer.len());
-            eprintln!("size required: {}", self.valid + capacity);
-            assert!(new_buffer.len() >= self.valid + capacity);
 
             let old_buffer = ::std::mem::replace(&mut self.buffer, new_buffer);
 
