@@ -75,8 +75,20 @@ impl BytesSlab {
                 }
                 self.in_progress.retain(|x| x.is_some());
             }
+            
+            let _stashed = self.stash.pop();
 
-            let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
+            let new_buffer = if let Some(stashed) = _stashed {
+                if stashed.len() >= self.valid + capacity {
+                    stashed
+                } else {
+                    Bytes::from(vec![0; 1 << self.shift].into_boxed_slice())
+                }
+            } else {
+                Bytes::from(vec![0; 1 << self.shift].into_boxed_slice())
+            };
+
+            // let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
             eprintln!("capacity: {}", capacity);
             eprintln!("valid: {}", self.valid);
             eprintln!("shift: {}", self.shift);
