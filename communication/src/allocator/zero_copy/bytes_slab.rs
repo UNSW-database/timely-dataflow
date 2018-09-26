@@ -54,18 +54,20 @@ impl BytesSlab {
 
         if self.empty().len() < capacity {
 
+            let mut increased_shift = false;
             // Increase allocation if copy would be insufficient.
             while self.valid + capacity > (1 << self.shift) {
                 self.shift += 1;
                 self.stash.clear();         // clear wrongly sized buffers.
                 self.in_progress.clear();   // clear wrongly sized buffers.
+                increased_shift = true;
             }
 
             // Attempt to reclaim shared slices.
             if self.stash.is_empty() {
                 for shared in self.in_progress.iter_mut() {
                     if let Some(mut bytes) = shared.take() {
-                        if bytes.try_regenerate::<Box<[u8]>>() {
+                        if bytes.try_regenerate::<Box<[u8]>>() && bytes.len() == (1 << self.shift) {
                             self.stash.push(bytes);
                         }
                         else {
@@ -76,24 +78,15 @@ impl BytesSlab {
                 self.in_progress.retain(|x| x.is_some());
             }
             
-            let _stashed = self.stash.pop();
-
-            let new_buffer = if let Some(stashed) = _stashed {
-                if stashed.len() >= self.valid + capacity {
-                    stashed
-                } else {
-                    Bytes::from(vec![0; 1 << self.shift].into_boxed_slice())
-                }
-            } else {
-                Bytes::from(vec![0; 1 << self.shift].into_boxed_slice())
-            };
-
-            // let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
+            let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
 
             let old_buffer = ::std::mem::replace(&mut self.buffer, new_buffer);
 
             self.buffer[.. self.valid].copy_from_slice(&old_buffer[.. self.valid]);
-            self.in_progress.push(Some(old_buffer));
+
+            if !increased_shift {
+                self.in_progress.push(Some(old_buffer));
+            }
         }
     }
 }
