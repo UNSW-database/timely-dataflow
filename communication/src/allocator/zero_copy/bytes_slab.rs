@@ -67,8 +67,10 @@ impl BytesSlab {
             if self.stash.is_empty() {
                 for shared in self.in_progress.iter_mut() {
                     if let Some(mut bytes) = shared.take() {
-                        if bytes.try_regenerate::<Box<[u8]>>() && bytes.len() == (1 << self.shift) {
-                            self.stash.push(bytes);
+                        if bytes.try_regenerate::<Box<[u8]>>() {
+                            if bytes.len() == (1 << self.shift) {
+                                self.stash.push(bytes);
+                            }
                         }
                         else {
                             *shared = Some(bytes);
@@ -78,7 +80,17 @@ impl BytesSlab {
                 self.in_progress.retain(|x| x.is_some());
             }
             
-            let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
+            let _stashed = self.stash.pop();
+            let new_buffer = if let Some(stashed) = _stashed {
+                if stashed.len() >= 1 << self.shift {
+                    stashed
+                } else {
+                    Bytes::from(vec![0; 1 << self.shift].into_boxed_slice())
+                }
+            } else {
+                Bytes::from(vec![0; 1 << self.shift].into_boxed_slice())
+            };
+            // let new_buffer = self.stash.pop().unwrap_or_else(|| Bytes::from(vec![0; 1 << self.shift].into_boxed_slice()));
 
             let old_buffer = ::std::mem::replace(&mut self.buffer, new_buffer);
 
